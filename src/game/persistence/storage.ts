@@ -15,7 +15,12 @@ export function loadGame(gameId: string) {
     return null;
   }
 
-  return JSON.parse(raw) as GameState;
+  const parsed = JSON.parse(raw) as GameState;
+
+  return {
+    ...parsed,
+    aiUnlockedAt: parsed.aiUnlockedAt ?? null,
+  };
 }
 
 export function loadGameIndex() {

@@ -33,6 +33,7 @@ export function createGame(config: GameConfig): GameState {
   assignStartingClusters(stars, players, map);
 
   return {
+    aiUnlockedAt: null,
     battles: [],
     buildTasks: [],
     config,

@@ -50,6 +50,7 @@ export interface GameConfig {
 }
 
 export interface GameState {
+  aiUnlockedAt: null | number;
   battles: Battle[];
   buildTasks: BuildTask[];
   config: GameConfig;

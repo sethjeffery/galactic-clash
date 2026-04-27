@@ -14,6 +14,7 @@ import { advanceGame } from "../engine/simulation";
 import { loadGame, saveGame } from "../persistence/storage";
 
 const AI_INTERVAL_SECONDS = 1.6;
+const AI_IDLE_GRACE_SECONDS = 15;
 const TICK_MILLISECONDS = 100;
 
 export function useGameSession(gameId: string | undefined) {
@@ -38,7 +39,15 @@ export function useGameSession(gameId: string | undefined) {
           return next;
         }
 
-        if (next.elapsedSeconds >= nextAiAtRef.current && !aiPendingRef.current && aiWorkerRef.current) {
+        const aiUnlocked =
+          next.aiUnlockedAt !== null || next.elapsedSeconds >= AI_IDLE_GRACE_SECONDS;
+
+        if (
+          aiUnlocked &&
+          next.elapsedSeconds >= nextAiAtRef.current &&
+          !aiPendingRef.current &&
+          aiWorkerRef.current
+        ) {
           aiPendingRef.current = true;
           nextAiAtRef.current = next.elapsedSeconds + AI_INTERVAL_SECONDS;
           aiWorkerRef.current?.postMessage(next);
@@ -78,25 +87,51 @@ export function useGameSession(gameId: string | undefined) {
   }, []);
 
   const sendFleet = useCallback((sourceId: StarId, destinationId: StarId, forces: number) => {
-    setState((current) =>
-      current ? dispatchFleet(current, sourceId, destinationId, forces, HUMAN_PLAYER_ID) : current,
-    );
+    setState((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const next = dispatchFleet(current, sourceId, destinationId, forces, HUMAN_PLAYER_ID);
+
+      return unlockAiAfterAction(current, next);
+    });
   }, []);
 
   const upgradeFactory = useCallback((starId: StarId) => {
-    setState((current) => (current ? startFactoryBuild(current, starId, HUMAN_PLAYER_ID) : current));
+    setState((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const next = startFactoryBuild(current, starId, HUMAN_PLAYER_ID);
+
+      return unlockAiAfterAction(current, next);
+    });
   }, []);
 
   const upgradeLane = useCallback((sourceId: StarId, destinationId: StarId) => {
-    setState((current) =>
-      current
-        ? startHyperspaceLaneBuild(current, sourceId, destinationId, HUMAN_PLAYER_ID)
-        : current,
-    );
+    setState((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const next = startHyperspaceLaneBuild(current, sourceId, destinationId, HUMAN_PLAYER_ID);
+
+      return unlockAiAfterAction(current, next);
+    });
   }, []);
 
   const upgradeTurret = useCallback((starId: StarId) => {
-    setState((current) => (current ? startTurretBuild(current, starId, HUMAN_PLAYER_ID) : current));
+    setState((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const next = startTurretBuild(current, starId, HUMAN_PLAYER_ID);
+
+      return unlockAiAfterAction(current, next);
+    });
   }, []);
 
   return {
@@ -134,4 +169,23 @@ function applyAiCommands(state: GameState, commands: AiCommand[]) {
 
     return startTurretBuild(next, command.starId, command.playerId);
   }, state);
+}
+
+function unlockAi(state: GameState) {
+  if (state.aiUnlockedAt !== null) {
+    return state;
+  }
+
+  return {
+    ...state,
+    aiUnlockedAt: state.elapsedSeconds,
+  };
+}
+
+function unlockAiAfterAction(previous: GameState, next: GameState) {
+  if (next === previous) {
+    return previous;
+  }
+
+  return unlockAi(next);
 }
