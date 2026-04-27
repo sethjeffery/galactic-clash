@@ -6,6 +6,8 @@ import { NewGameScreen } from "../screens/NewGameScreen";
 import { ResultsScreen } from "../screens/ResultsScreen";
 import { CruiseStarfield } from "../ui/CruiseStarfield";
 
+import "./App.css";
+
 export function App() {
   return (
     <BrowserRouter>

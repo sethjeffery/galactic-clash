@@ -8,6 +8,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { saveGame } from "../game/persistence/storage";
 import { createGame } from "../game/setup/createGame";
 
+import "./NewGameScreen.css";
+
 interface DifficultyOption {
   icon: ReactElement;
   label: string;

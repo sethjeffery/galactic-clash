@@ -1,0 +1,31 @@
+.star-readout h2 {
+  margin: 0 0 14px;
+  color: #f5f9ff;
+  font-size: 1.4rem;
+}
+
+.star-readout dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 0;
+}
+
+.star-readout dl div {
+  border: 1px solid rgb(151 178 211 / 18%);
+  border-radius: 6px;
+  padding: 10px;
+  background: rgb(255 255 255 / 4%);
+}
+
+.star-readout dt {
+  color: #7f91a8;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.star-readout dd {
+  margin: 4px 0 0;
+  color: #e7eefb;
+  font-weight: 800;
+}

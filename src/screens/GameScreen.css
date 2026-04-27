@@ -1,0 +1,67 @@
+.game-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+}
+
+.game-shell::before {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(4 8 12 / 8%), rgb(4 8 12 / 26%));
+  content: "";
+  pointer-events: none;
+}
+
+.game-topbar {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.status-strip,
+.hover-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid rgb(151 178 211 / 24%);
+  border-radius: 6px;
+  background: rgb(7 16 25 / 76%);
+  color: #c5d3e6;
+  padding: 10px 14px;
+  backdrop-filter: blur(12px);
+}
+
+.hover-bar {
+  position: absolute;
+  z-index: 2;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  min-height: 44px;
+}
+
+@media (max-width: 760px) {
+  .game-topbar {
+    right: 12px;
+    left: 12px;
+    flex-wrap: wrap;
+  }
+
+  .status-strip {
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .hover-bar {
+    right: 12px;
+    left: 12px;
+    overflow: auto;
+  }
+}

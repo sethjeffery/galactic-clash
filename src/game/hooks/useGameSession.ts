@@ -10,11 +10,11 @@ import {
   startHyperspaceLaneBuild,
   startTurretBuild,
 } from "../engine/actions";
+import { shouldPlanAiTurn, unlockAiAfterAction } from "../engine/aiActivation";
 import { advanceGame } from "../engine/simulation";
 import { loadGame, saveGame } from "../persistence/storage";
 
 const AI_INTERVAL_SECONDS = 1.6;
-const AI_IDLE_GRACE_SECONDS = 15;
 const TICK_MILLISECONDS = 100;
 
 export function useGameSession(gameId: string | undefined) {
@@ -39,11 +39,8 @@ export function useGameSession(gameId: string | undefined) {
           return next;
         }
 
-        const aiUnlocked =
-          next.aiUnlockedAt !== null || next.elapsedSeconds >= AI_IDLE_GRACE_SECONDS;
-
         if (
-          aiUnlocked &&
+          shouldPlanAiTurn(next) &&
           next.elapsedSeconds >= nextAiAtRef.current &&
           !aiPendingRef.current &&
           aiWorkerRef.current
@@ -169,23 +166,4 @@ function applyAiCommands(state: GameState, commands: AiCommand[]) {
 
     return startTurretBuild(next, command.starId, command.playerId);
   }, state);
-}
-
-function unlockAi(state: GameState) {
-  if (state.aiUnlockedAt !== null) {
-    return state;
-  }
-
-  return {
-    ...state,
-    aiUnlockedAt: state.elapsedSeconds,
-  };
-}
-
-function unlockAiAfterAction(previous: GameState, next: GameState) {
-  if (next === previous) {
-    return previous;
-  }
-
-  return unlockAi(next);
 }

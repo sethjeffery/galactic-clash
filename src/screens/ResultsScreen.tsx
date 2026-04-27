@@ -7,6 +7,8 @@ import { Link, useParams } from "react-router-dom";
 import { formatForces } from "../game/math";
 import { loadGame } from "../game/persistence/storage";
 
+import "./ResultsScreen.css";
+
 export function ResultsScreen() {
   const { gameId } = useParams();
   const state = gameId ? loadGame(gameId) : null;

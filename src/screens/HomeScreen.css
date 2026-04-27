@@ -1,0 +1,76 @@
+.home-screen,
+.setup-screen {
+  overflow: hidden;
+}
+
+.home-screen::after {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 58%, rgb(76 201 240 / 5%), transparent 18%),
+    radial-gradient(circle at 22% 24%, rgb(76 201 240 / 7%), transparent 26%),
+    radial-gradient(circle at 80% 74%, rgb(255 92 122 / 6%), transparent 28%);
+  content: "";
+  opacity: 0.52;
+  pointer-events: none;
+}
+
+.game-menu {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 28px;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  perspective: 1600px;
+  text-align: center;
+}
+
+.menu-title {
+  display: grid;
+  gap: 14px;
+}
+
+.menu-title h1 {
+  max-width: none;
+  font-size: clamp(3.8rem, 9.8vw, 7.8rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 26px rgb(76 201 240 / 24%),
+    0 14px 50px rgb(0 0 0 / 55%);
+}
+
+.menu-title span {
+  color: #9eb8d3;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-shadow: 0 8px 30px rgb(0 0 0 / 45%);
+  text-transform: uppercase;
+}
+
+.menu-actions {
+  display: grid;
+  gap: 12px;
+  width: min(320px, 100%);
+}
+
+.menu-action {
+  min-height: 54px;
+  justify-content: center;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .game-menu {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-title h1 {
+    font-size: clamp(3rem, 16vw, 5rem);
+  }
+}

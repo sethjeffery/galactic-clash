@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+import "./starfields.css";
+
 interface CruiseStar {
   drift: number;
   glow: number;

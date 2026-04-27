@@ -1,23 +1,20 @@
-import type { BuildTask, BuildTaskType, Star, StarId } from "../game/types";
-import type { CSSProperties } from "react";
+import type { Star, StarId } from "../game/types";
+import type { CommandMode } from "./game/types";
 
-import { ArrowLeft, Factory, MousePointer2, Radar, Shield, Zap } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
 import { HUMAN_PLAYER_ID } from "../game/constants";
-import {
-  factoryCost,
-  getGrowthPerSecond,
-  laneBuildCost,
-  turretCost,
-} from "../game/engine/economy";
+import { laneBuildCost } from "../game/engine/economy";
 import { getStar, isDestinationReachable, isLaneBuildReachable } from "../game/engine/selectors";
 import { useGameSession } from "../game/hooks/useGameSession";
 import { formatForces } from "../game/math";
 import { GalaxyViewport } from "../ui/GalaxyViewport";
+import { getActiveBuild } from "./game/buildProgress";
+import { GameCommandPanel } from "./game/GameCommandPanel";
 
-type CommandMode = "inspect" | "lane" | "send";
+import "./GameScreen.css";
 
 export function GameScreen() {
   const { gameId } = useParams();
@@ -192,112 +189,26 @@ export function GameScreen() {
         state={state}
       />
 
-      <aside className="command-panel">
-        <section>
-          <p className="eyebrow">Selected star</p>
-          {selectedSource ? (
-            <StarReadout star={selectedSource} />
-          ) : (
-            <p className="muted">Select a star to inspect it. Select one of your cyan stars to command it.</p>
-          )}
-        </section>
-
-        {selectedSource ? (
-          <section className="action-stack">
-            <label htmlFor="send-percent">Dispatch {sendPercent}%</label>
-            <input
-              id="send-percent"
-              max="100"
-              min="5"
-              onChange={(event) => setSendPercent(Number(event.target.value))}
-              step="5"
-              type="range"
-              value={sendPercent}
-            />
-            <button
-              className={commandMode === "send" ? "active-command" : ""}
-              disabled={selectedSource.ownerId !== HUMAN_PLAYER_ID || sendForces <= 0}
-              onClick={() => setCommandMode(commandMode === "send" ? "inspect" : "send")}
-              type="button"
-            >
-              {commandMode === "send" ? <MousePointer2 size={16} /> : <Zap size={16} />}
-              {commandMode === "send" ? "Choose target" : `Send Troops (${sendForces})`}
-            </button>
-            <button
-              disabled={
-                selectedSource.ownerId !== HUMAN_PLAYER_ID ||
-                selectedSource.forces < factoryCost(selectedSource) ||
-                activeFactoryBuild !== null
-              }
-              onClick={() => upgradeFactory(selectedSource.id)}
-              style={buildProgressStyle(activeFactoryBuild, state.elapsedSeconds)}
-              type="button"
-            >
-              <Factory size={16} />
-              {activeFactoryBuild
-                ? `Factory ${buildProgress(activeFactoryBuild, state.elapsedSeconds)}%`
-                : `Factory (${factoryCost(selectedSource)})`}
-            </button>
-            <button
-              disabled={
-                selectedSource.ownerId !== HUMAN_PLAYER_ID ||
-                selectedSource.forces < turretCost(selectedSource) ||
-                activeTurretBuild !== null
-              }
-              onClick={() => upgradeTurret(selectedSource.id)}
-              style={buildProgressStyle(activeTurretBuild, state.elapsedSeconds)}
-              type="button"
-            >
-              <Shield size={16} />
-              {activeTurretBuild
-                ? `Turret ${buildProgress(activeTurretBuild, state.elapsedSeconds)}%`
-                : `Turret (${turretCost(selectedSource)})`}
-            </button>
-            <button
-              className={commandMode === "lane" ? "active-command" : ""}
-              disabled={selectedSource.ownerId !== HUMAN_PLAYER_ID || activeLaneBuild !== null}
-              onClick={() => setCommandMode(commandMode === "lane" ? "inspect" : "lane")}
-              style={buildProgressStyle(activeLaneBuild, state.elapsedSeconds)}
-              type="button"
-            >
-              <Radar size={16} />
-              {activeLaneBuild
-                ? `Build Lane ${buildProgress(activeLaneBuild, state.elapsedSeconds)}%`
-                : `Build Lane${laneCost && commandMode === "lane" ? ` (${laneCost})` : ""}`}
-            </button>
-          </section>
-        ) : null}
-
-        <section>
-          <p className="eyebrow">{commandMode === "inspect" ? "Target" : "Command target"}</p>
-          {activeTarget ? (
-            <StarReadout star={activeTarget} />
-          ) : (
-            <p className="muted">
-              {commandMode === "send"
-                ? "Click any linked star to send troops, including friendly stars."
-                : commandMode === "lane"
-                  ? "Click another star to start constructing a lane."
-                  : "Use Send Troops or Build Lane to choose a target."}
-            </p>
-          )}
-        </section>
-
-        {commandMode !== "inspect" ? (
-          <section className="mode-hint">
-            {commandMode === "send" && activeTarget
-              ? reachable
-                ? `Click to dispatch ${sendForces} forces.`
-                : "No lane from the selected star."
-              : null}
-            {commandMode === "lane" && laneTarget && laneCost
-              ? canBuildLaneToTarget
-                ? `Lane cost ${laneCost}. Click to start construction.`
-                : `Lane cost ${laneCost}. Target is out of range, already linked, or underfunded.`
-              : "Empty click or right-click cancels."}
-          </section>
-        ) : null}
-      </aside>
+      <GameCommandPanel
+        activeFactoryBuild={activeFactoryBuild}
+        activeLaneBuild={activeLaneBuild}
+        activeTarget={activeTarget}
+        activeTurretBuild={activeTurretBuild}
+        canBuildLaneToTarget={canBuildLaneToTarget}
+        commandMode={commandMode}
+        laneCost={laneCost}
+        laneTarget={laneTarget}
+        onCommandModeChange={setCommandMode}
+        onSendPercentChange={setSendPercent}
+        onUpgradeFactory={upgradeFactory}
+        onUpgradeLaneMode={() => setCommandMode(commandMode === "lane" ? "inspect" : "lane")}
+        onUpgradeTurret={upgradeTurret}
+        reachable={reachable}
+        selectedSource={selectedSource}
+        sendForces={sendForces}
+        sendPercent={sendPercent}
+        state={state}
+      />
 
       <footer className="hover-bar">
         {hoveredStar ? (
@@ -311,61 +222,5 @@ export function GameScreen() {
         )}
       </footer>
     </main>
-  );
-}
-
-function buildProgress(task: BuildTask, elapsedSeconds: number) {
-  return Math.round(getTaskProgress(task, elapsedSeconds) * 100);
-}
-
-function buildProgressStyle(task: BuildTask | null, elapsedSeconds: number) {
-  if (!task) {
-    return undefined;
-  }
-
-  return {
-    "--progress": `${buildProgress(task, elapsedSeconds)}%`,
-  } as CSSProperties;
-}
-
-function getActiveBuild(buildTasks: BuildTask[] | undefined, sourceStarId: StarId, type: BuildTaskType) {
-  return (
-    (buildTasks ?? []).find((task) => task.sourceStarId === sourceStarId && task.type === type) ?? null
-  );
-}
-
-function getTaskProgress(task: BuildTask, elapsedSeconds: number) {
-  const duration = task.completeAt - task.startedAt;
-
-  if (duration <= 0) {
-    return 1;
-  }
-
-  return Math.min(1, Math.max(0, (elapsedSeconds - task.startedAt) / duration));
-}
-
-function StarReadout({ star }: { star: Star }) {
-  return (
-    <div className="star-readout">
-      <h2>{star.name}</h2>
-      <dl>
-        <div>
-          <dt>Forces</dt>
-          <dd>{formatForces(star.forces)}</dd>
-        </div>
-        <div>
-          <dt>Growth</dt>
-          <dd>{getGrowthPerSecond(star).toFixed(2)}/s</dd>
-        </div>
-        <div>
-          <dt>Factory</dt>
-          <dd>{star.upgrades.factory}</dd>
-        </div>
-        <div>
-          <dt>Turret</dt>
-          <dd>{star.upgrades.turret}</dd>
-        </div>
-      </dl>
-    </div>
   );
 }

@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import { planAiTurn } from "../ai/aiController";
 import { AI_PLAYER_ID, HUMAN_PLAYER_ID } from "../constants";
 import { createGame } from "../setup/createGame";
-import { dispatchFleet } from "./actions";
+import {
+  dispatchFleet,
+  startFactoryBuild,
+  startHyperspaceLaneBuild,
+  startTurretBuild,
+} from "./actions";
+import { factoryDuration, laneBuildDuration, turretDuration } from "./economy";
 import { advanceGame } from "./simulation";
 
 describe("simulation", () => {
@@ -51,6 +57,82 @@ describe("simulation", () => {
     const captured = afterBattle.stars.find((star) => star.id === target.id);
 
     expect(captured?.ownerId).toBe(HUMAN_PLAYER_ID);
+  });
+
+  it("reinforces a friendly star when a fleet arrives without a battle", () => {
+    const game = createGame({
+      difficulty: "cadet",
+      mapSize: "compact",
+      opponentCount: 1,
+      winCondition: "capture_all_enemy_stars",
+    });
+    const [source, target] = game.stars.filter((star) => star.ownerId === HUMAN_PLAYER_ID);
+
+    expect(source).toBeDefined();
+    expect(target).toBeDefined();
+
+    source!.x = 0;
+    source!.y = 0;
+    source!.forces = 50;
+    target!.x = 100;
+    target!.y = 0;
+    target!.forces = 12;
+
+    const withFleet = dispatchFleet(game, source!.id, target!.id, 20, HUMAN_PLAYER_ID);
+    const afterArrival = advanceBy(withFleet, 2);
+
+    expect(afterArrival.fleets).toHaveLength(0);
+    expect(afterArrival.stars.find((star) => star.id === target!.id)?.forces).toBeGreaterThan(31);
+  });
+
+  it("adds defender-owned arrivals to active battle defenses", () => {
+    const game = createGame({
+      difficulty: "cadet",
+      mapSize: "compact",
+      opponentCount: 1,
+      winCondition: "capture_all_enemy_stars",
+    });
+    const humanSource = game.stars.find((star) => star.ownerId === HUMAN_PLAYER_ID)!;
+    const humanTarget = game.stars.find(
+      (star) => star.ownerId === HUMAN_PLAYER_ID && star.id !== humanSource.id,
+    )!;
+
+    humanSource.forces = 40;
+    humanTarget.forces = 15;
+
+    const withFleet = dispatchFleet(
+      {
+        ...game,
+        battles: [
+          {
+            attackers: [
+              {
+                forces: 30,
+                id: "battle-ai",
+                originStarId: "enemy-origin",
+                playerId: AI_PLAYER_ID,
+              },
+            ],
+            defenderForces: 15,
+            defenderPlayerId: HUMAN_PLAYER_ID,
+            starId: humanTarget.id,
+          },
+        ],
+      },
+      humanSource.id,
+      humanTarget.id,
+      10,
+      HUMAN_PLAYER_ID,
+    );
+    const arrived = advanceGame(
+      {
+        ...withFleet,
+        fleets: withFleet.fleets.map((fleet) => ({ ...fleet, arrivalAt: withFleet.elapsedSeconds })),
+      },
+      0.1,
+    );
+
+    expect(arrived.battles[0]?.defenderForces).toBeGreaterThan(15);
   });
 
   it("keeps rival fleets as separate attackers when they land on a contested neutral star", () => {
@@ -125,4 +207,103 @@ describe("simulation", () => {
 
     expect(commands.some((command) => command.type === "lane")).toBe(true);
   });
+
+  it("completes factory, turret, and lane builds on schedule", () => {
+    const game = createGame({
+      difficulty: "cadet",
+      mapSize: "compact",
+      opponentCount: 1,
+      winCondition: "capture_all_enemy_stars",
+    });
+    const source = game.stars.find((star) => star.ownerId === HUMAN_PLAYER_ID)!;
+    const target = game.stars.find((star) => star.ownerId === null)!;
+
+    source.x = 0;
+    source.y = 0;
+    source.forces = 200;
+    target.x = 300;
+    target.y = 0;
+
+    const withFactory = startFactoryBuild(game, source.id, HUMAN_PLAYER_ID);
+    const withTurret = startTurretBuild(withFactory, source.id, HUMAN_PLAYER_ID);
+    const withLane = startHyperspaceLaneBuild(withTurret, source.id, target.id, HUMAN_PLAYER_ID);
+    const completeAt = Math.max(
+      factoryDuration(source),
+      turretDuration(source),
+      laneBuildDuration(source, target),
+    );
+    const completed = advanceBy(withLane, completeAt + 0.1);
+    const completedSource = completed.stars.find((star) => star.id === source.id);
+
+    expect(completed.buildTasks).toHaveLength(0);
+    expect(completedSource?.upgrades.factory).toBe(1);
+    expect(completedSource?.upgrades.turret).toBe(1);
+    expect(completed.hyperspaceLanes).toHaveLength(1);
+  });
+
+  it("does not complete the game while a defeated player still has a fleet in flight", () => {
+    const game = createGame({
+      difficulty: "cadet",
+      mapSize: "compact",
+      opponentCount: 1,
+      winCondition: "capture_all_enemy_stars",
+    });
+    const humanStar = game.stars.find((star) => star.ownerId === HUMAN_PLAYER_ID)!;
+    const aiStar = game.stars.find((star) => star.ownerId === AI_PLAYER_ID)!;
+    const pendingFleetGame = {
+      ...game,
+      fleets: [
+        {
+          arrivalAt: 100,
+          departedAt: 0,
+          destinationStarId: humanStar.id,
+          forces: 10,
+          id: "fleet-ai",
+          originStarId: aiStar.id,
+          ownerId: AI_PLAYER_ID,
+        },
+      ],
+      stars: game.stars.map((star) =>
+        star.ownerId === AI_PLAYER_ID ? { ...star, ownerId: HUMAN_PLAYER_ID } : star,
+      ),
+    };
+
+    const next = advanceGame(pendingFleetGame, 0.5);
+
+    expect(next.phase).toBe("playing");
+    expect(next.winnerId).toBeNull();
+  });
+
+  it("marks the sole active player as winner when no enemies have stars, fleets, or battles", () => {
+    const game = createGame({
+      difficulty: "cadet",
+      mapSize: "compact",
+      opponentCount: 1,
+      winCondition: "capture_all_enemy_stars",
+    });
+    const conquered = {
+      ...game,
+      stars: game.stars.map((star) =>
+        star.ownerId === AI_PLAYER_ID ? { ...star, ownerId: HUMAN_PLAYER_ID } : star,
+      ),
+    };
+    const completed = advanceGame(conquered, 0.1);
+
+    expect(completed.phase).toBe("complete");
+    expect(completed.winnerId).toBe(HUMAN_PLAYER_ID);
+  });
 });
+
+function advanceBy(game: ReturnType<typeof createGame>, seconds: number) {
+  let next = game;
+  let remainingSeconds = seconds;
+
+  while (remainingSeconds > 0) {
+    const step = Math.min(0.5, remainingSeconds);
+
+    next = advanceGame(next, step);
+    remainingSeconds -= step;
+  }
+
+  return next;
+}
