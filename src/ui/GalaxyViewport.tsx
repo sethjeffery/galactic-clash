@@ -12,12 +12,9 @@ import type {
 import { Application, Container } from "pixi.js";
 import { useCallback, useEffect, useRef } from "react";
 
-import {
-  queueBattleBursts,
-  queueOwnerTransitions,
-  queueUpgradeBursts,
-} from "./galaxy/effects";
-import { hasActiveOwnerTransitions } from "./galaxy/geometry";
+import { HUMAN_PLAYER_ID } from "../game/constants";
+import { queueBattleBursts, queueOwnerTransitions, queueUpgradeBursts } from "./galaxy/effects";
+import { easeInOutCubic, hasActiveOwnerTransitions } from "./galaxy/geometry";
 import { findStarAtEvent, getPinchState, isTrackpadPanEvent } from "./galaxy/interaction";
 import {
   drawBattles,
@@ -32,6 +29,8 @@ import {
 import "./GalaxyViewport.css";
 
 interface GalaxyViewportProps {
+  canBuildLaneToTarget: boolean;
+  canSendToTarget: boolean;
   hoveredStarId: null | StarId;
   interactionMode: "inspect" | "lane" | "send";
   onCancelInteraction: () => void;
@@ -44,6 +43,8 @@ interface GalaxyViewportProps {
 }
 
 export function GalaxyViewport({
+  canBuildLaneToTarget,
+  canSendToTarget,
   hoveredStarId,
   interactionMode,
   onCancelInteraction,
@@ -60,16 +61,20 @@ export function GalaxyViewport({
   const draggingRef = useRef<DragState | null>(null);
   const dynamicLayerRef = useRef<Container | null>(null);
   const galaxyRootRef = useRef<Container | null>(null);
+  const hasRunIntroCameraRef = useRef(false);
+  const introCameraFrameRef = useRef(0);
   const particleBurstsRef = useRef<ParticleBurst[]>([]);
   const pinchStateRef = useRef<PinchState | null>(null);
   const previousBattleGroupsRef = useRef(new Map<string, BattleGroupSnapshot>());
   const previousStarOwnersRef = useRef(new Map<StarId, null | string>());
   const previousUpgradeLevelsRef = useRef(new Map<StarId, string>());
   const starOwnerTransitionsRef = useRef(new Map<StarId, OwnerTransition>());
+  const stateRef = useRef(state);
   const stateReceivedAtRef = useRef(0);
   const staticLayerRef = useRef<Container | null>(null);
 
   useEffect(() => {
+    stateRef.current = state;
     stateReceivedAtRef.current = performance.now();
     queueBattleBursts(state, previousBattleGroupsRef.current, particleBurstsRef.current);
     queueOwnerTransitions(
@@ -93,6 +98,8 @@ export function GalaxyViewport({
       state.elapsedSeconds + (performance.now() - stateReceivedAtRef.current) / 1000;
 
     drawCommandPulse(dynamicLayer, state, {
+      canBuildLaneToTarget,
+      canSendToTarget,
       interactionMode,
       selectedDestinationId,
       selectedSourceId,
@@ -100,7 +107,64 @@ export function GalaxyViewport({
     drawBattles(dynamicLayer, state);
     drawFleets(dynamicLayer, state, visualElapsedSeconds);
     drawParticleBursts(dynamicLayer, particleBurstsRef.current);
-  }, [interactionMode, selectedDestinationId, selectedSourceId, state]);
+  }, [canBuildLaneToTarget, canSendToTarget, interactionMode, selectedDestinationId, selectedSourceId, state]);
+
+  const cancelIntroCamera = useCallback(() => {
+    window.cancelAnimationFrame(introCameraFrameRef.current);
+  }, []);
+
+  const startIntroCamera = useCallback((hostElement: HTMLDivElement) => {
+    if (hasRunIntroCameraRef.current) {
+      return;
+    }
+
+    const humanStars = stateRef.current.stars.filter((star) => star.ownerId === HUMAN_PLAYER_ID);
+
+    if (humanStars.length === 0) {
+      return;
+    }
+
+    hasRunIntroCameraRef.current = true;
+
+    const center = humanStars.reduce(
+      (sum, star) => ({
+        x: sum.x + star.x / humanStars.length,
+        y: sum.y + star.y / humanStars.length,
+      }),
+      { x: 0, y: 0 },
+    );
+    const startCamera = { ...cameraRef.current };
+    const targetCamera = {
+      ...startCamera,
+      x: hostElement.clientWidth / 2 - center.x * startCamera.scale,
+      y: hostElement.clientHeight / 2 - center.y * startCamera.scale,
+    };
+    const startedAt = performance.now();
+    const duration = 1600;
+    const root = galaxyRootRef.current;
+
+    root?.position.set(startCamera.x, startCamera.y);
+    root?.scale.set(startCamera.scale);
+
+    function step(now: number) {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = easeInOutCubic(progress);
+
+      cameraRef.current = {
+        scale: startCamera.scale,
+        x: startCamera.x + (targetCamera.x - startCamera.x) * eased,
+        y: startCamera.y + (targetCamera.y - startCamera.y) * eased,
+      };
+      galaxyRootRef.current?.position.set(cameraRef.current.x, cameraRef.current.y);
+      galaxyRootRef.current?.scale.set(cameraRef.current.scale);
+
+      if (progress < 1) {
+        introCameraFrameRef.current = window.requestAnimationFrame(step);
+      }
+    }
+
+    introCameraFrameRef.current = window.requestAnimationFrame(step);
+  }, []);
 
   const drawGalaxy = useCallback(() => {
     const root = galaxyRootRef.current;
@@ -152,9 +216,11 @@ export function GalaxyViewport({
     void app
       .init({
         antialias: true,
+        autoDensity: true,
         backgroundAlpha: 0,
         preference: "webgl",
         resizeTo: host,
+        resolution: Math.min(window.devicePixelRatio || 1, 2),
       })
       .then(() => {
         initialized = true;
@@ -170,16 +236,18 @@ export function GalaxyViewport({
         dynamicLayerRef.current = new Container();
         galaxyRootRef.current.addChild(staticLayerRef.current, dynamicLayerRef.current);
         app.stage.addChild(galaxyRootRef.current);
+        startIntroCamera(host);
       });
 
     return () => {
       shouldDestroy = true;
+      cancelIntroCamera();
       destroyApp();
       dynamicLayerRef.current = null;
       galaxyRootRef.current = null;
       staticLayerRef.current = null;
     };
-  }, []);
+  }, [cancelIntroCamera, startIntroCamera]);
 
   const updateCameraTransform = useCallback(() => {
     const root = galaxyRootRef.current;
@@ -266,6 +334,7 @@ export function GalaxyViewport({
         return;
       }
 
+      cancelIntroCamera();
       activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
       hostElement.setPointerCapture(event.pointerId);
 
@@ -350,6 +419,7 @@ export function GalaxyViewport({
 
     function handleWheel(event: WheelEvent) {
       event.preventDefault();
+      cancelIntroCamera();
 
       if (isTrackpadPanEvent(event)) {
         cameraRef.current = {
@@ -366,6 +436,7 @@ export function GalaxyViewport({
 
     function handleContextMenu(event: MouseEvent) {
       event.preventDefault();
+      cancelIntroCamera();
       activePointersRef.current.clear();
       draggingRef.current = null;
       pinchStateRef.current = null;
@@ -396,6 +467,7 @@ export function GalaxyViewport({
       hostElement.removeEventListener("wheel", handleWheel);
     };
   }, [
+    cancelIntroCamera,
     endPinchGesture,
     onCancelInteraction,
     onHoverStar,

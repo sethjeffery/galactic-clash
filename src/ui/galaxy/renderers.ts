@@ -16,6 +16,8 @@ import {
   getUnitVector,
 } from "./geometry";
 
+const MAP_TEXT_RESOLUTION = 2;
+
 export function drawBattles(layer: Container, state: GameState) {
   for (const battle of state.battles) {
     const destination = state.stars.find((star) => star.id === battle.starId);
@@ -34,6 +36,8 @@ export function drawCommandPulse(
   layer: Container,
   state: GameState,
   selection: {
+    canBuildLaneToTarget: boolean;
+    canSendToTarget: boolean;
     interactionMode: "inspect" | "lane" | "send";
     selectedDestinationId: null | StarId;
     selectedSourceId: null | StarId;
@@ -47,6 +51,14 @@ export function drawCommandPulse(
   const destination = state.stars.find((star) => star.id === selection.selectedDestinationId);
 
   if (!source || !destination) {
+    return;
+  }
+
+  if (selection.interactionMode === "lane" && !selection.canBuildLaneToTarget) {
+    return;
+  }
+
+  if (selection.interactionMode === "send" && !selection.canSendToTarget) {
     return;
   }
 
@@ -89,6 +101,7 @@ export function drawFleets(layer: Container, state: GameState, elapsedSeconds: n
     layer.addChild(fleetGraphic);
 
     const text = new Text({
+      resolution: MAP_TEXT_RESOLUTION,
       style: { fill: 0xdde8f8, fontFamily: "Inter, system-ui", fontSize: 12 },
       text: formatForces(fleet.forces),
     });
@@ -232,6 +245,7 @@ export function drawStars(
     layer.addChild(starGraphic);
 
     const label = new Text({
+      resolution: MAP_TEXT_RESOLUTION,
       style: {
         fill: 0xe8f1ff,
         fontFamily: "Inter, system-ui",
@@ -275,6 +289,7 @@ function drawBattleGroup(
   drawBattleSparks(layer, { x, y }, destination, color, index);
 
   const label = new Text({
+    resolution: MAP_TEXT_RESOLUTION,
     style: { fill: 0xf6d8df, fontFamily: "Inter, system-ui", fontSize: 12, fontWeight: "700" },
     text: formatForces(group.forces),
   });

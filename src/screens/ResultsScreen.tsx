@@ -1,13 +1,17 @@
 import type { ReactNode } from "react";
+import type { CSSProperties } from "react";
 
 import { ArrowLeft, Crown, Factory, RotateCcw, Shield, Sparkles, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { HUMAN_PLAYER_ID } from "../game/constants";
 import { formatForces } from "../game/math";
 import { loadGame } from "../game/persistence/storage";
 
 import "./ResultsScreen.css";
+
+const STARFIELD_BASE_HUE_DEGREES = 194;
 
 export function ResultsScreen() {
   const { gameId } = useParams();
@@ -18,13 +22,24 @@ export function ResultsScreen() {
   const factories = winnerStars.reduce((sum, star) => sum + star.upgrades.factory, 0);
   const turrets = winnerStars.reduce((sum, star) => sum + star.upgrades.turret, 0);
   const elapsedSeconds = state ? Math.floor(state.elapsedSeconds) : 0;
+  const winnerColor = winner ? colorToCssColor(winner.color) : "#4cc9f0";
+  const winnerHueRotation = winner ? `${colorToHueRotationDegrees(winner.color)}deg` : "0deg";
+  const resultTitle = winner
+    ? winner.id === HUMAN_PLAYER_ID
+      ? `${winner.name} victorious`
+      : `Sector lost to ${winner.name}`
+    : "No victor recorded";
+  const resultStyle = {
+    "--winner-color": winnerColor,
+    "--winner-hue-rotate": winnerHueRotation,
+  } as CSSProperties;
 
   return (
-    <main className="screen results-screen">
+    <main className="screen results-screen" style={resultStyle}>
       <section className="results-panel">
         <div className="victory-title screen-enter delay-1">
           <Crown size={42} />
-          <h1>{winner ? `${winner.name} victorious` : "No victor recorded"}</h1>
+          <h1>{resultTitle}</h1>
         </div>
 
         <div className="results-stats screen-enter delay-2">
@@ -147,4 +162,42 @@ function formatElapsedTime(value: number) {
   const seconds = Math.floor(value % 60);
 
   return `${minutes}m ${seconds}s`;
+}
+
+function colorToCssColor(color: number) {
+  return `#${color.toString(16).padStart(6, "0")}`;
+}
+
+function colorToHueRotationDegrees(color: number) {
+  const hue = colorToHueDegrees(color);
+  const rotation = hue - STARFIELD_BASE_HUE_DEGREES;
+
+  return Math.round(((rotation + 180) % 360) - 180);
+}
+
+function colorToHueDegrees(color: number) {
+  const red = ((color >> 16) & 255) / 255;
+  const green = ((color >> 8) & 255) / 255;
+  const blue = (color & 255) / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+
+  if (delta === 0) {
+    return STARFIELD_BASE_HUE_DEGREES;
+  }
+
+  if (max === red) {
+    return normalizeHueDegrees(60 * (((green - blue) / delta) % 6));
+  }
+
+  if (max === green) {
+    return normalizeHueDegrees(60 * ((blue - red) / delta + 2));
+  }
+
+  return normalizeHueDegrees(60 * ((red - green) / delta + 4));
+}
+
+function normalizeHueDegrees(hue: number) {
+  return (hue + 360) % 360;
 }

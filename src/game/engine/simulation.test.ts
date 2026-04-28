@@ -100,30 +100,35 @@ describe("simulation", () => {
     humanSource.forces = 40;
     humanTarget.forces = 15;
 
-    const withFleet = dispatchFleet(
-      {
-        ...game,
-        battles: [
-          {
-            attackers: [
-              {
-                forces: 30,
-                id: "battle-ai",
-                originStarId: "enemy-origin",
-                playerId: AI_PLAYER_ID,
-              },
-            ],
-            defenderForces: 15,
-            defenderPlayerId: HUMAN_PLAYER_ID,
-            starId: humanTarget.id,
-          },
-        ],
-      },
-      humanSource.id,
-      humanTarget.id,
-      10,
-      HUMAN_PLAYER_ID,
-    );
+    const withFleet = {
+      ...game,
+      battles: [
+        {
+          attackers: [
+            {
+              forces: 30,
+              id: "battle-ai",
+              originStarId: "enemy-origin",
+              playerId: AI_PLAYER_ID,
+            },
+          ],
+          defenderForces: 15,
+          defenderPlayerId: HUMAN_PLAYER_ID,
+          starId: humanTarget.id,
+        },
+      ],
+      fleets: [
+        {
+          arrivalAt: game.elapsedSeconds,
+          departedAt: game.elapsedSeconds - 1,
+          destinationStarId: humanTarget.id,
+          forces: 10,
+          id: "reinforce-human-battle",
+          originStarId: humanSource.id,
+          ownerId: HUMAN_PLAYER_ID,
+        },
+      ],
+    };
     const arrived = advanceGame(
       {
         ...withFleet,

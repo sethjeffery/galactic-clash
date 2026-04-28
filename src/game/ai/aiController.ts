@@ -8,6 +8,9 @@ import {
 } from "../engine/actions";
 import { factoryCost, laneBuildCost, turretCost } from "../engine/economy";
 import {
+  canDispatchFleet,
+  canDispatchFromStar,
+  canStartBuildFromStar,
   getConnectedLane,
   getStar,
   isDestinationReachable,
@@ -154,13 +157,13 @@ function planAttack(state: GameState, star: Star, playerId: PlayerId): AiAttackP
   const difficultyFactor = DIFFICULTY_FACTOR[state.config.difficulty];
   const threshold = 26 / difficultyFactor;
 
-  if (star.forces < threshold) {
+  if (star.forces < threshold || !canDispatchFromStar(state, star, playerId)) {
     return null;
   }
 
   const target = state.stars
     .filter((candidate) => candidate.ownerId !== playerId)
-    .filter((candidate) => isDestinationReachable(state, star, candidate))
+    .filter((candidate) => canDispatchFleet(state, star, candidate, playerId))
     .sort((a, b) => scoreTarget(star, b) - scoreTarget(star, a))[0];
 
   if (!target) {
@@ -180,6 +183,10 @@ function planAttack(state: GameState, star: Star, playerId: PlayerId): AiAttackP
 }
 
 function planLane(state: GameState, star: Star, playerId: PlayerId): AiUpgradeCommand | null {
+  if (!canStartBuildFromStar(state, star, playerId)) {
+    return null;
+  }
+
   if (state.stars.some((candidate) => candidate.ownerId !== playerId && isDestinationReachable(state, star, candidate))) {
     return null;
   }
@@ -203,6 +210,10 @@ function planLane(state: GameState, star: Star, playerId: PlayerId): AiUpgradeCo
 }
 
 function planUpgrade(state: GameState, star: Star, playerId: PlayerId): AiUpgradeCommand | null {
+  if (!canStartBuildFromStar(state, star, playerId)) {
+    return null;
+  }
+
   if (star.forces > factoryCost(star) + 22 && star.upgrades.factory < 3) {
     return { playerId, starId: star.id, type: "factory" };
   }

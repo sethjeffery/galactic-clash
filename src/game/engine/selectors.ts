@@ -29,6 +29,10 @@ export function getStar(state: GameState, starId: StarId) {
   return state.stars.find((star) => star.id === starId) ?? null;
 }
 
+export function isStarUnderSiege(state: GameState, starId: StarId) {
+  return state.battles.some((battle) => battle.starId === starId);
+}
+
 export function isDestinationReachable(state: GameState, source: Star, destination: Star) {
   return (
     distance(source, destination) <= getJumpRange(source) ||
@@ -36,8 +40,24 @@ export function isDestinationReachable(state: GameState, source: Star, destinati
   );
 }
 
+export function canDispatchFromStar(state: GameState, source: Star, playerId: PlayerId) {
+  return state.phase === "playing" && source.ownerId === playerId && !isStarUnderSiege(state, source.id);
+}
+
+export function canDispatchFleet(state: GameState, source: Star, destination: Star, playerId: PlayerId) {
+  return (
+    canDispatchFromStar(state, source, playerId) &&
+    source.id !== destination.id &&
+    isDestinationReachable(state, source, destination)
+  );
+}
+
 export function isLaneBuildReachable(source: Star, destination: Star) {
   return distance(source, destination) <= BASE_LANE_BUILD_RANGE && source.id !== destination.id;
+}
+
+export function canStartBuildFromStar(state: GameState, source: Star, playerId: PlayerId) {
+  return state.phase === "playing" && source.ownerId === playerId && !isStarUnderSiege(state, source.id);
 }
 
 export function playerOwnsAnyStars(state: GameState, playerId: PlayerId) {

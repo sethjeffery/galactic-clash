@@ -100,4 +100,34 @@ describe("actions", () => {
     expect(second).toBe(first);
     expect(second.buildTasks).toHaveLength(1);
   });
+
+  it("blocks dispatches and new builds from stars under siege", () => {
+    const game = createTestGame();
+    const source = positionStar(getHumanStar(game), 0, 0);
+    const target = positionStar(getNeutralStar(game), 100, 0);
+    source.forces = 100;
+    const underSiege = {
+      ...game,
+      battles: [
+        {
+          attackers: [
+            {
+              forces: 12,
+              id: "attack-1",
+              originStarId: target.id,
+              playerId: AI_PLAYER_ID,
+            },
+          ],
+          defenderForces: source.forces,
+          defenderPlayerId: HUMAN_PLAYER_ID,
+          starId: source.id,
+        },
+      ],
+    };
+
+    expect(dispatchFleet(underSiege, source.id, target.id, 20, HUMAN_PLAYER_ID)).toBe(underSiege);
+    expect(startFactoryBuild(underSiege, source.id, HUMAN_PLAYER_ID)).toBe(underSiege);
+    expect(startTurretBuild(underSiege, source.id, HUMAN_PLAYER_ID)).toBe(underSiege);
+    expect(startHyperspaceLaneBuild(underSiege, source.id, target.id, HUMAN_PLAYER_ID)).toBe(underSiege);
+  });
 });

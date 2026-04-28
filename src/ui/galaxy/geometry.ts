@@ -8,6 +8,10 @@ export function easeOutCubic(value: number) {
   return 1 - Math.pow(1 - value, 3);
 }
 
+export function easeInOutCubic(value: number) {
+  return value < 0.5 ? 4 * Math.pow(value, 3) : 1 - Math.pow(-2 * value + 2, 3) / 2;
+}
+
 export function getAnimatedStarColor(
   state: GameState,
   star: Star,
@@ -71,7 +75,10 @@ export function getPlayerColor(state: GameState, playerId: string) {
   return state.players.find((player: Player) => player.id === playerId)?.color ?? NEUTRAL_COLOR;
 }
 
-export function getUnitVector(source: { x: number; y: number }, destination: { x: number; y: number }) {
+export function getUnitVector(
+  source: { x: number; y: number },
+  destination: { x: number; y: number },
+) {
   const length = Math.max(1, distance(source, destination));
 
   return {
@@ -83,7 +90,9 @@ export function getUnitVector(source: { x: number; y: number }, destination: { x
 export function hasActiveOwnerTransitions(transitions: Map<StarId, OwnerTransition>) {
   const now = performance.now();
 
-  return [...transitions.values()].some((transition) => now - transition.startedAt < transition.duration);
+  return [...transitions.values()].some(
+    (transition) => now - transition.startedAt < transition.duration,
+  );
 }
 
 function getFleetStopProgress(origin: Star, destination: Star) {

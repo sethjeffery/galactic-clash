@@ -55,13 +55,10 @@
   }
 
   .status-strip {
-    flex: 1;
-    justify-content: space-between;
+    display: none;
   }
 
   .hover-bar {
-    right: 12px;
-    left: 12px;
-    overflow: auto;
+    display: none;
   }
 }

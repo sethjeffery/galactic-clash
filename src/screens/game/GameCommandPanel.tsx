@@ -1,7 +1,7 @@
 import type { BuildTask, GameState, Star } from "../../game/types";
 import type { CommandMode } from "./types";
 
-import { Factory, MousePointer2, Radar, Shield, Zap } from "lucide-react";
+import { DollarSign, Factory, Radar, Rocket, Shield } from "lucide-react";
 
 import { HUMAN_PLAYER_ID } from "../../game/constants";
 import { factoryCost, turretCost } from "../../game/engine/economy";
@@ -15,7 +15,9 @@ interface GameCommandPanelProps {
   activeLaneBuild: BuildTask | null;
   activeTarget: Star | null;
   activeTurretBuild: BuildTask | null;
+  canBuildFromSource: boolean;
   canBuildLaneToTarget: boolean | null;
+  canSendToTarget: boolean;
   commandMode: CommandMode;
   laneCost: null | number;
   laneTarget: Star | null;
@@ -28,6 +30,7 @@ interface GameCommandPanelProps {
   selectedSource: Star | null;
   sendForces: number;
   sendPercent: number;
+  sourceUnderSiege: boolean;
   state: GameState;
 }
 
@@ -36,7 +39,9 @@ export function GameCommandPanel({
   activeLaneBuild,
   activeTarget,
   activeTurretBuild,
+  canBuildFromSource,
   canBuildLaneToTarget,
+  canSendToTarget,
   commandMode,
   laneCost,
   laneTarget,
@@ -49,16 +54,18 @@ export function GameCommandPanel({
   selectedSource,
   sendForces,
   sendPercent,
+  sourceUnderSiege,
   state,
 }: GameCommandPanelProps) {
   return (
     <aside className="command-panel">
-      <section>
-        <p className="eyebrow">Selected star</p>
+      <section className="selected-star-section">
         {selectedSource ? (
           <StarReadout star={selectedSource} />
         ) : (
-          <p className="muted">Select a star to inspect it. Select one of your cyan stars to command it.</p>
+          <p className="muted">
+            Select a star to inspect it. Select one of your cyan stars to command it.
+          </p>
         )}
       </section>
 
@@ -76,16 +83,19 @@ export function GameCommandPanel({
           />
           <button
             className={commandMode === "send" ? "active-command" : ""}
-            disabled={selectedSource.ownerId !== HUMAN_PLAYER_ID || sendForces <= 0}
+            disabled={selectedSource.ownerId !== HUMAN_PLAYER_ID || sourceUnderSiege || sendForces <= 0}
             onClick={() => onCommandModeChange(commandMode === "send" ? "inspect" : "send")}
             type="button"
           >
-            {commandMode === "send" ? <MousePointer2 size={16} /> : <Zap size={16} />}
-            {commandMode === "send" ? "Choose target" : `Send Troops (${sendForces})`}
+            <span className="action-label">
+              <Rocket size={16} />
+              Send
+            </span>
+            <span className="action-unit">{sendForces}</span>
           </button>
           <button
             disabled={
-              selectedSource.ownerId !== HUMAN_PLAYER_ID ||
+              !canBuildFromSource ||
               selectedSource.forces < factoryCost(selectedSource) ||
               activeFactoryBuild !== null
             }
@@ -93,14 +103,24 @@ export function GameCommandPanel({
             style={buildProgressStyle(activeFactoryBuild, state.elapsedSeconds)}
             type="button"
           >
-            <Factory size={16} />
-            {activeFactoryBuild
-              ? `Factory ${buildProgress(activeFactoryBuild, state.elapsedSeconds)}%`
-              : `Factory (${factoryCost(selectedSource)})`}
+            <span className="action-label">
+              <Factory size={16} />
+              Factory
+            </span>
+            <span className="action-unit">
+              {activeFactoryBuild ? (
+                `${buildProgress(activeFactoryBuild, state.elapsedSeconds)}%`
+              ) : (
+                <>
+                  <DollarSign size={14} />
+                  {factoryCost(selectedSource)}
+                </>
+              )}
+            </span>
           </button>
           <button
             disabled={
-              selectedSource.ownerId !== HUMAN_PLAYER_ID ||
+              !canBuildFromSource ||
               selectedSource.forces < turretCost(selectedSource) ||
               activeTurretBuild !== null
             }
@@ -108,53 +128,63 @@ export function GameCommandPanel({
             style={buildProgressStyle(activeTurretBuild, state.elapsedSeconds)}
             type="button"
           >
-            <Shield size={16} />
-            {activeTurretBuild
-              ? `Turret ${buildProgress(activeTurretBuild, state.elapsedSeconds)}%`
-              : `Turret (${turretCost(selectedSource)})`}
+            <span className="action-label">
+              <Shield size={16} />
+              Turret
+            </span>
+            <span className="action-unit">
+              {activeTurretBuild ? (
+                `${buildProgress(activeTurretBuild, state.elapsedSeconds)}%`
+              ) : (
+                <>
+                  <DollarSign size={14} />
+                  {turretCost(selectedSource)}
+                </>
+              )}
+            </span>
           </button>
           <button
             className={commandMode === "lane" ? "active-command" : ""}
-            disabled={selectedSource.ownerId !== HUMAN_PLAYER_ID || activeLaneBuild !== null}
+            disabled={!canBuildFromSource || activeLaneBuild !== null}
             onClick={onUpgradeLaneMode}
             style={buildProgressStyle(activeLaneBuild, state.elapsedSeconds)}
             type="button"
           >
-            <Radar size={16} />
-            {activeLaneBuild
-              ? `Build Lane ${buildProgress(activeLaneBuild, state.elapsedSeconds)}%`
-              : `Build Lane${laneCost && commandMode === "lane" ? ` (${laneCost})` : ""}`}
+            <span className="action-label">
+              <Radar size={16} />
+              Lane
+            </span>
+            <span className="action-unit">
+              {activeLaneBuild ? (
+                `${buildProgress(activeLaneBuild, state.elapsedSeconds)}%`
+              ) : laneCost && commandMode === "lane" ? (
+                <>
+                  <DollarSign size={14} />
+                  {laneCost}
+                </>
+              ) : (
+                "-"
+              )}
+            </span>
           </button>
         </section>
       ) : null}
 
-      <section>
-        <p className="eyebrow">{commandMode === "inspect" ? "Target" : "Command target"}</p>
-        {activeTarget ? (
-          <StarReadout star={activeTarget} />
-        ) : (
-          <p className="muted">
-            {commandMode === "send"
-              ? "Click any linked star to send troops, including friendly stars."
-              : commandMode === "lane"
-                ? "Click another star to start constructing a lane."
-                : "Use Send Troops or Build Lane to choose a target."}
-          </p>
-        )}
-      </section>
-
       {commandMode !== "inspect" ? (
         <section className="mode-hint">
-          {commandMode === "send" && activeTarget
+          {sourceUnderSiege
+            ? "Star under siege. It can receive reinforcements, but it cannot send fleets or start builds."
+            : commandMode === "send" && activeTarget
             ? reachable
-              ? `Click to dispatch ${sendForces} forces.`
+              ? canSendToTarget
+                ? `Click to dispatch ${sendForces} forces.`
+                : "This star cannot send fleets right now."
               : "No lane from the selected star."
-            : null}
-          {commandMode === "lane" && laneTarget && laneCost
-            ? canBuildLaneToTarget
-              ? `Lane cost ${laneCost}. Click to start construction.`
-              : `Lane cost ${laneCost}. Target is out of range, already linked, or underfunded.`
-            : "Empty click or right-click cancels."}
+            : commandMode === "lane" && laneTarget && laneCost
+              ? canBuildLaneToTarget
+                ? `Lane cost ${laneCost}. Click to start construction.`
+                : `Lane cost ${laneCost}. Target is out of range, already linked, or underfunded.`
+              : "Empty click or right-click cancels."}
         </section>
       ) : null}
     </aside>

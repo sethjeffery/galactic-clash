@@ -15,6 +15,10 @@
   backdrop-filter: blur(14px);
 }
 
+.selected-star-section {
+  min-width: 0;
+}
+
 .muted {
   margin: 0;
   color: #8294aa;
@@ -39,10 +43,30 @@
 .action-stack button {
   --progress: 0%;
   width: 100%;
+  justify-content: space-between;
   background:
     linear-gradient(90deg, rgb(76 201 240 / 28%) 0 var(--progress), transparent var(--progress)),
     #132131;
   color: #dce8f8;
+  text-align: left;
+}
+
+.action-label,
+.action-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-label {
+  min-width: 0;
+  margin-right: auto;
+}
+
+.action-unit {
+  justify-content: flex-end;
+  color: #f7d774;
+  font-weight: 700;
 }
 
 .action-stack button.active-command {
@@ -70,9 +94,61 @@
   .command-panel {
     top: auto;
     right: 12px;
-    bottom: 64px;
+    bottom: 12px;
     left: 12px;
     width: auto;
-    max-height: 42vh;
+    max-height: 28vh;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .action-stack {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .action-stack label,
+  .action-stack input {
+    display: none;
+  }
+
+  .action-stack button {
+    display: grid;
+    justify-items: center;
+    min-height: 54px;
+    gap: 4px;
+    padding: 12px 10px !important;
+    text-align: center;
+  }
+
+  .action-label {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    font-size: 0.66rem;
+    line-height: 1.05;
+  }
+
+  .action-label svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .action-unit {
+    justify-content: center;
+    gap: 2px;
+    font-size: 0.72rem;
+    line-height: 1;
+  }
+
+  .action-unit svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  .mode-hint {
+    padding: 7px 8px;
+    font-size: 0.78rem;
+    display: none;
   }
 }

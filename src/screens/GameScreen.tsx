@@ -7,7 +7,14 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
 import { HUMAN_PLAYER_ID } from "../game/constants";
 import { laneBuildCost } from "../game/engine/economy";
-import { getStar, isDestinationReachable, isLaneBuildReachable } from "../game/engine/selectors";
+import {
+  canDispatchFleet,
+  canStartBuildFromStar,
+  getStar,
+  isDestinationReachable,
+  isLaneBuildReachable,
+  isStarUnderSiege,
+} from "../game/engine/selectors";
 import { useGameSession } from "../game/hooks/useGameSession";
 import { formatForces } from "../game/math";
 import { GalaxyViewport } from "../ui/GalaxyViewport";
@@ -78,7 +85,7 @@ export function GameScreen() {
     setSelectedDestinationId(star.id);
 
     if (commandMode === "send") {
-      if (isDestinationReachable(gameState, selectedSource, star) && sendForces > 0) {
+      if (canDispatchFleet(gameState, selectedSource, star, HUMAN_PLAYER_ID) && sendForces > 0) {
         sendFleet(selectedSource.id, star.id, sendForces);
         setCommandMode("inspect");
       }
@@ -89,6 +96,7 @@ export function GameScreen() {
       const cost = laneBuildCost(selectedSource, star);
 
       if (
+        canStartBuildFromStar(gameState, selectedSource, HUMAN_PLAYER_ID) &&
         selectedSource.forces >= cost &&
         isLaneBuildReachable(selectedSource, star) &&
         !gameState.hyperspaceLanes.some(
@@ -106,9 +114,7 @@ export function GameScreen() {
   function handleStarRightClick(star: Star) {
     if (
       selectedSource &&
-      selectedSource.ownerId === HUMAN_PLAYER_ID &&
-      star.id !== selectedSource.id &&
-      isDestinationReachable(gameState, selectedSource, star) &&
+      canDispatchFleet(gameState, selectedSource, star, HUMAN_PLAYER_ID) &&
       sendForces > 0
     ) {
       sendFleet(selectedSource.id, star.id, sendForces);
@@ -127,12 +133,16 @@ export function GameScreen() {
 
   function clearCommandMode() {
     setCommandMode("inspect");
+    setSelectedSourceId(null);
     setSelectedDestinationId(null);
   }
 
   const hoveredTarget = hoveredStarId ? getStar(gameState, hoveredStarId) : null;
   const activeTarget =
     commandMode === "inspect" ? selectedDestination : hoveredTarget ?? selectedDestination;
+  const sourceUnderSiege = selectedSource ? isStarUnderSiege(gameState, selectedSource.id) : false;
+  const canBuildFromSource =
+    selectedSource ? canStartBuildFromStar(gameState, selectedSource, HUMAN_PLAYER_ID) : false;
   const reachable =
     selectedSource && activeTarget
       ? isDestinationReachable(gameState, selectedSource, activeTarget)
@@ -140,11 +150,16 @@ export function GameScreen() {
   const sendForces = selectedSource
     ? Math.max(0, Math.floor((selectedSource.forces - 1) * (sendPercent / 100)))
     : 0;
+  const canSendToTarget =
+    selectedSource && activeTarget
+      ? canDispatchFleet(gameState, selectedSource, activeTarget, HUMAN_PLAYER_ID) && sendForces > 0
+      : false;
   const laneTarget = commandMode === "lane" ? hoveredTarget ?? selectedDestination : selectedDestination;
   const laneCost = selectedSource && laneTarget ? laneBuildCost(selectedSource, laneTarget) : null;
   const canBuildLaneToTarget =
     selectedSource &&
     laneTarget &&
+    canBuildFromSource &&
     laneCost !== null &&
     selectedSource.forces >= laneCost &&
     isLaneBuildReachable(selectedSource, laneTarget) &&
@@ -178,6 +193,8 @@ export function GameScreen() {
       </header>
 
       <GalaxyViewport
+        canBuildLaneToTarget={Boolean(canBuildLaneToTarget)}
+        canSendToTarget={canSendToTarget}
         hoveredStarId={hoveredStarId}
         interactionMode={commandMode}
         onCancelInteraction={clearCommandMode}
@@ -194,7 +211,9 @@ export function GameScreen() {
         activeLaneBuild={activeLaneBuild}
         activeTarget={activeTarget}
         activeTurretBuild={activeTurretBuild}
+        canBuildFromSource={canBuildFromSource}
         canBuildLaneToTarget={canBuildLaneToTarget}
+        canSendToTarget={canSendToTarget}
         commandMode={commandMode}
         laneCost={laneCost}
         laneTarget={laneTarget}
@@ -207,6 +226,7 @@ export function GameScreen() {
         selectedSource={selectedSource}
         sendForces={sendForces}
         sendPercent={sendPercent}
+        sourceUnderSiege={sourceUnderSiege}
         state={state}
       />
 

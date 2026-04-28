@@ -12,7 +12,9 @@
   position: fixed;
   inset: 0;
   pointer-events: none;
-  transition: opacity 260ms ease, filter 260ms ease;
+  transition:
+    opacity 260ms ease,
+    filter 260ms ease;
   z-index: 0;
 }
 

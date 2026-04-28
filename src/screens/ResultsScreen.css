@@ -7,14 +7,21 @@
   margin: 0 auto;
 }
 
+.results-screen::before {
+  background: rgb(4 8 12 / 4%);
+  animation: results-hue-shift 1s ease both;
+  backdrop-filter: hue-rotate(var(--winner-hue-rotate)) saturate(2.5);
+  opacity: 1;
+}
+
 .victory-title {
   display: grid;
   gap: 14px;
 }
 
 .victory-title svg {
-  color: #f7d774;
-  filter: drop-shadow(0 0 22px rgb(247 215 116 / 42%));
+  color: var(--winner-color);
+  filter: drop-shadow(0 0 22px color-mix(in srgb, var(--winner-color) 48%, transparent));
 }
 
 .results-stats {
@@ -42,7 +49,7 @@
 .result-stat span {
   color: #8da3bc;
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
@@ -60,5 +67,15 @@
 @media (max-width: 760px) {
   .results-stats {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+@keyframes results-hue-shift {
+  from {
+    backdrop-filter: hue-rotate(0deg) saturate(1);
+  }
+
+  to {
+    backdrop-filter: hue-rotate(var(--winner-hue-rotate)) saturate(2);
   }
 }

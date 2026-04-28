@@ -14,12 +14,18 @@ import {
   turretCost,
   turretDuration,
 } from "./economy";
-import { getConnectedLane, getStar, isDestinationReachable, isLaneBuildReachable } from "./selectors";
+import {
+  canDispatchFleet,
+  canStartBuildFromStar,
+  getConnectedLane,
+  getStar,
+  isLaneBuildReachable,
+} from "./selectors";
 
 export function startFactoryBuild(state: GameState, starId: StarId, playerId: PlayerId) {
   const star = getStar(state, starId);
 
-  if (!star || star.ownerId !== playerId || hasActiveBuild(state, star.id, "factory")) {
+  if (!star || !canStartBuildFromStar(state, star, playerId) || hasActiveBuild(state, star.id, "factory")) {
     return state;
   }
 
@@ -44,7 +50,7 @@ export function startHyperspaceLaneBuild(
   if (
     !source ||
     !destination ||
-    source.ownerId !== playerId ||
+    !canStartBuildFromStar(state, source, playerId) ||
     source.id === destination.id ||
     getConnectedLane(state, source.id, destination.id) ||
     hasActiveBuild(state, source.id, "hyperspace_lane") ||
@@ -73,7 +79,7 @@ export function startHyperspaceLaneBuild(
 export function startTurretBuild(state: GameState, starId: StarId, playerId: PlayerId) {
   const star = getStar(state, starId);
 
-  if (!star || star.ownerId !== playerId || hasActiveBuild(state, star.id, "turret")) {
+  if (!star || !canStartBuildFromStar(state, star, playerId) || hasActiveBuild(state, star.id, "turret")) {
     return state;
   }
 
@@ -100,9 +106,7 @@ export function dispatchFleet(
     state.phase !== "playing" ||
     !source ||
     !destination ||
-    source.ownerId !== playerId ||
-    source.id === destination.id ||
-    !isDestinationReachable(state, source, destination)
+    !canDispatchFleet(state, source, destination, playerId)
   ) {
     return state;
   }
